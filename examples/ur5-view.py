@@ -64,11 +64,47 @@ def compute_transformation_matrix(joint_angles):
 
     return [T0, T1, T2, T3, T4, T5, T6]
 
+def create_capsule(visualizer, point1, point2, radius, color=0xFFFFFF, opacity=0.5):
+    """
+    Create a capsule shape between two points with the specified radius, color, and opacity.
+
+    Args:
+        visualizer (meshcat.Visualizer): The MeshCat visualizer instance.
+        point1 (list or tuple): The first point [x, y, z].
+        point2 (list or tuple): The second point [x, y, z].
+        radius (float): The radius of the capsule.
+        color (int): The color of the capsule in hexadecimal.
+        opacity (float): The opacity of the capsule.
+    """
+    material = g.MeshLambertMaterial(color=color, opacity=opacity, transparent=True)
+    
+    # Create spheres at the endpoints
+    visualizer["capsule/sphere1"].set_object(g.Sphere(radius), material)
+    visualizer["capsule/sphere1"].set_transform(tf.translation_matrix(point1))
+    
+    visualizer["capsule/sphere2"].set_object(g.Sphere(radius), material)
+    visualizer["capsule/sphere2"].set_transform(tf.translation_matrix(point2))
+    
+    # Create cylinder between the endpoints
+    midpoint = [(p1 + p2) / 2 for p1, p2 in zip(point1, point2)]
+    height = np.linalg.norm(np.array(point2) - np.array(point1))
+    direction = np.array(point2) - np.array(point1)
+    direction = direction / np.linalg.norm(direction)
+    axis = np.cross([0, 1, 0], direction)
+    angle = np.arccos(np.dot([0, 1, 0], direction))
+    rotation_matrix = tf.rotation_matrix(angle, axis)
+    
+    visualizer["capsule/cylinder"].set_object(g.Cylinder(height, radius), material)
+    visualizer["capsule/cylinder"].set_transform(tf.translation_matrix(midpoint).dot(rotation_matrix))
+
+
 def main():
     """Main function to visualize the UR5 robot arm."""
     vis = initialize_visualizer()
     parts = ["base", "shoulder", "upperarm", "forearm", "wrist1", "wrist2", "wrist3"]
     load_robot_parts(vis, parts)
+
+    create_capsule(vis, [0, 0.1, 0], [0, -0.1, 0.5], 0.1)
 
     while True:
         t = time.time()
